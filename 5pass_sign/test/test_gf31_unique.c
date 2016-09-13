@@ -1,30 +1,23 @@
 #include <stdio.h>
 #include <string.h>
 #include "../gf31.h"
+#include "../params.h"
 
-int test_gf31_x_is_31()
+int test_vgf31_unique()
 {
-    int i;
-    gf31 x;
-    for (i = -32768; i < 32768; i++) {
-        x = i;
-        if ((gf31_is31(x) && x != 31) || (!gf31_is31(x) && x == 31)) {
-            return 1;
-        }
-    }
-    return 0;
-}
-
-int test_gf31_unique()
-{
-    gf31 x;
-    int i;
+    int i, j;
+    gf31 x[N];
 
     for (i = 0; i <= 31; i++) {
-        x = i;
-        x = gf31_unique(x);
-        if (x < 0 || x >= 31) {
-            return 1;
+        for (j = 0; j < N; j++) {
+            x[j] = i;
+        }
+        vgf31_unique(x, x);
+
+        for (j = 0; j < N; j++) {
+            if (x[j] != (i % 31)) {
+                return 1;
+            }
         }
     }
     return 0;
@@ -32,17 +25,12 @@ int test_gf31_unique()
 
 int main()
 {
-    int r1, r2;
+    int r1;
 
-    r1 = test_gf31_x_is_31();
-    printf("Testing gf31_is31.. ");
+    r1 = test_vgf31_unique();
+    printf("Testing vgf31_unique.. ");
     printf(r1 ? "FAIL!" : "Success.");
     printf("\n");
 
-    r2 = test_gf31_unique();
-    printf("Testing gf31_unique in general.. ");
-    printf(r2 ? "FAIL!" : "Success.");
-    printf("\n");
-
-    return r1 | r2;
+    return r1;
 }

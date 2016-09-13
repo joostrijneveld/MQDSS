@@ -1,12 +1,12 @@
 CC = /usr/bin/gcc
-CFLAGS = -Wall -Wextra -O3
+CPP = /usr/bin/g++
+CFLAGS = -Wall -Wextra -O3 -mavx2 -faggressive-loop-optimizations -funroll-loops -std=c11
 
-OBJS = randombytes.o sign.o params.h gf31.o gen_MQ.S gen_G.S gen_shorten_gf31.S measure/tools.o
+OBJS = randombytes.o sign.o params.h gf31.o mq.o measure/tools.o
 OBJS += ../KeccakCodePackage/bin/Haswell/libkeccak.a
 
 DEPS = params.h mq.h randombytes.h sign.h gf31.h measure/tools.h
 
-# I feel like there should be a better way to do this..
 CFLAGS += -I../KeccakCodePackage/Modes\
 		  -I../KeccakCodePackage/Common\
 		  -I../KeccakCodePackage/Constructions\
@@ -20,11 +20,11 @@ MEASURE = $(patsubst measure/measure_%.c,measure/measure_%,$(wildcard measure/me
 
 all: tests measure
 
+mq_test: $(OBJS) mq_test.o
+	$(CC) $(CFLAGS) $^ -o $@ -lcrypto
+
 tests: $(TESTS)
 measure: $(MEASURE)
-
-gen_%.S: asmgen/gen_%.py
-	python3 $^ > $@
 
 %.o: %.c $(DEPS)
 	$(CC) $(CFLAGS) -c -o $@ $<
@@ -43,5 +43,3 @@ clean:
 	rm -f measure/*.o
 	rm -f $(TESTS)
 	rm -f $(MEASURE)
-	rm -f gen_*.S
-	rm -rf asmgen/__pycache__

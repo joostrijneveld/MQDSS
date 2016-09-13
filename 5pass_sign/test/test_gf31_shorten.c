@@ -1,48 +1,24 @@
 #include <stdio.h>
 #include <string.h>
 #include "../gf31.h"
+#include "../params.h"
 
-int test_gf31shorten()
+int test_gf31shorten_unique()
 {
-    gf31 x;
-    int i;
+    gf31 x[N];
+    int i, j;
 
-    for (i = -32768; i < 32768; i++) {
-        x = i;
-        x = gf31_shorten(gf31_shorten(gf31_shorten(x)));
-        if (x == 31) {
-            x = 0;  // Since shorten does not reduce < 31, but <= 31.
+    // The function is expected to work for 15 bits.
+    for (i = 0; i < 32768; i++) {
+        for (j = 0; j < N; j++) {
+            x[j] = i;
         }
-        if (! (x == (i % 31) || (x == (i % 31) + 31 && (i % 31) < 0))) {
-            return 1;
-        }
-    }
-    return 0;
-}
+        vgf31_shorten_unique(x, x);
 
-int test_shorten_toposdomain()
-{
-    gf31 x;
-    int i;
-
-    for (i = -16; i <= 15; i++) {
-        x = gf31_shorten(i);
-        if (x < 0) {
-            return 1;
-        }
-    }
-    return 0;
-}
-
-int test_signed_shorten()
-{
-    gf31 x;
-    int i;
-
-    for (i = -32; i <= 32; i++) {
-        x = gf31_signed_shorten(i);
-        if (x < -16 || x > 15) {
-            return 1;
+        for (j = 0; j < N; j++) {
+            if (x[j] != (i % 31)) {
+                return 1;
+            }
         }
     }
     return 0;
@@ -50,22 +26,12 @@ int test_signed_shorten()
 
 int main()
 {
-    int r1, r2, r3;
+    int r1;
 
-    r1 = test_gf31shorten();
-    printf("Testing gf31_shorten^3(x) ≈ x %% 31.. ");
+    r1 = test_gf31shorten_unique();
+    printf("Testing vgf31_shorten_unique(x) = x %% 31.. ");
     printf(r1 ? "FAIL!" : "Success.");
     printf("\n");
 
-    r2 = test_shorten_toposdomain();
-    printf("Testing if gf31_shorten([-16, 15]) >= 0.. ");
-    printf(r1 ? "FAIL!" : "Success.");
-    printf("\n");
-
-    r3 = test_signed_shorten();
-    printf("Testing if gf31_signed_shorten([-32, 32]) in [-16, 15].. ");
-    printf(r3 ? "FAIL!" : "Success.");
-    printf("\n");
-
-    return r1 | r2 | r3;
+    return r1;
 }

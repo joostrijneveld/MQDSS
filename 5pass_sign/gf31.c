@@ -1,80 +1,65 @@
 #include <assert.h>
+#include <immintrin.h>
 #include "params.h"
 #include "KeccakHash.h"
 #include "gf31.h"
 
-int gf31_is31(gf31 x)
+/* This function acts on vectors with 64 gf31 elements. */
+void vgf31_unique(gf31 *out, gf31 *in)
 {
-    /* This function is typically applied to accumulators before hashing, and
-    the accumulator is not secret after it is computed.. Maybe we do not need
-    to be constant time here. TODO Can we guarantee that the difference between
-    '31' and '0' does not reveal anything here? TODO Also, maybe we can do
-    something smarter than a very general bit-folding approach? */
-    x = ~(x ^ 31);
-    x &= x >> 8;
-    x &= x >> 4;
-    x &= x >> 2;
-    x &= x >> 1;
-    return (x & 1);
-}
-
-gf31 gf31_unique(gf31 x)
-{
-    char a = gf31_is31(x);
-    return x * (1 - a);
-}
-
-void vgf31_unique(gf31 *out, gf31 *in, int len)
-{
+    __m256i x;
+    __m256i _w31 = _mm256_set1_epi16(31);
     int i;
 
-    for (i = 0; i < len; i++) {
-        out[i] = gf31_unique(in[i]);
+    for (i = 0; i < 4; ++i) {
+        x = _mm256_loadu_si256((__m256i const *) (in + 16*i));
+        x = _mm256_xor_si256(x, _mm256_and_si256(_w31, _mm256_cmpeq_epi16(x, _w31)));
+        _mm256_storeu_si256((__m256i*)(out + i*16), x);
     }
 }
 
-gf31 gf31_shorten(gf31 x)
+/* This function acts on vectors with 64 gf31 elements.
+It performs one reduction step and guarantees output in [0, 30],
+but requires input to be in [0, 32768). */
+void vgf31_shorten_unique(gf31 *out, gf31 *in)
 {
-    gf31 t;
-
-    t = x & 31;
-    x >>= 5;
-    x += t;
-    return x;
-}
-
-void vgf31_shorten(gf31 *out, gf31 *in, int len)
-{
+    __m256i x;
+    __m256i _w2114 = _mm256_set1_epi32(2114*65536 + 2114);
+    __m256i _w31 = _mm256_set1_epi16(31);
     int i;
 
-    for (i = 0; i < len; i++) {
-        out[i] = gf31_shorten(in[i]);
-    }
-}
-
-gf31 gf31_signed_shorten(gf31 x)
-{
-    gf31 t;
-    x += 16;
-    t = x & 31;
-    x >>= 5;
-    x += t;
-    x -= 16;
-    return x;
-}
-
-void vgf31_signed_shorten(gf31 *out, gf31 *in, int len)
-{
-    int i;
-
-    for (i = 0; i < len; i++) {
-        out[i] = gf31_signed_shorten(in[i]);
-        // Since we would only do this to get in range [-16, 15]..
-        assert(out[i] >= -16 && out[i] <= 15);
+    for (i = 0; i < 4; ++i) {
+        x = _mm256_loadu_si256((__m256i const *) (in + 16*i));
+        x = _mm256_sub_epi16(x, _mm256_mullo_epi16(_w31, _mm256_mulhi_epi16(x, _w2114)));
+        x = _mm256_xor_si256(x, _mm256_and_si256(_w31, _mm256_cmpeq_epi16(x, _w31)));
+        _mm256_storeu_si256((__m256i*)(out + i*16), x);
     }
 }
 
 void gf31_nrand(gf31 *out, const int len, const unsigned char *seed, const int seedlen)
+{
+    int i = 0, j;
+    const int buflen = 128;
+    unsigned char buf[buflen];
+    Keccak_HashInstance keccak;
+
+    Keccak_HashInitialize_SHAKE128(&keccak);
+    Keccak_HashUpdate(&keccak, seed, seedlen);
+    Keccak_HashFinal(&keccak, buf);
+
+    // TODO should not only use the 5 low bits of a byte!
+    while (i < len) {
+        Keccak_HashSqueeze(&keccak, buf, buflen * 8);
+        for (j = 0; j < buflen && i < len; j++) {
+            if ((buf[j] & 31) != 31) {
+                out[i] = (buf[j] & 31);
+                i++;
+            }
+        }
+    }
+}
+
+void gf31_nrand_schar(signed char *out, const int len, const unsigned char *seed, const int seedlen)
 {
     int i = 0, j;
     const int buflen = 128;
@@ -117,10 +102,6 @@ void gf31_nunpack(gf31 *out, const unsigned char *in, const int n)
     }
 }
 
-// TODO It should be possible to pack [-15, 15] rather than [0, 30].
-// That would hugely reduce the need to convert elements from [0, 31], since
-// that means we can use signed_shorten a lot more often.
-
 /* Packs an array of GF31 elements from gf31's to concatenated 5-bit values.
 This function assumes that there is sufficient space available to unpack.
 Can perform in-place. */
@@ -131,7 +112,7 @@ void gf31_npack(unsigned char *out, const gf31 *in, const int n)
     int d = 3;
 
     for (j = 0; j < n; j++) {
-        assert(in[j] >= 0 && in[j] < 31);
+        assert(in[j] < 31);
     }
 
     for (j = 0; j < n; j++) {

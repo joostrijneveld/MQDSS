@@ -1,21 +1,21 @@
 #ifndef GF31_H
 #define GF31_H
 
-typedef signed short gf31;
+typedef unsigned short gf31;
 
 int gf31_is31(gf31 x);
 
 gf31 gf31_unique(gf31 x);
-void vgf31_unique(gf31 *out, gf31 *in, int len);
+void vgf31_unique(gf31 *out, gf31 *in);
 
 gf31 gf31_shorten(gf31 x);
-void vgf31_shorten(gf31 *out, gf31 *in, int len);
-
-gf31 gf31_signed_shorten(gf31 x);
-void vgf31_signed_shorten(gf31 *out, gf31 *in, int len);
+void vgf31_shorten(gf31 *out, gf31 *in);
+void vgf31_shorten_unique(gf31 *out, gf31 *in);
 
 /* Generates a sequence of len random GF31 elements. */
 void gf31_nrand(gf31 *out, const int len, const unsigned char *seed, const int seedlen);
+void gf31_nrand_uchar(unsigned char *out, const int len, const unsigned char *seed, const int seedlen);
+void gf31_nrand_schar(signed char *out, const int len, const unsigned char *seed, const int seedlen);
 
 /* Unpacks an array of packed GF31 elements to one element per byte.
 This function assumes that there is sufficient empty space available at the end

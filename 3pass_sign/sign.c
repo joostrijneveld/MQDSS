@@ -32,7 +32,7 @@ void crypto_sign_keypair(unsigned char *pk, unsigned char *sk)
     unsigned char F[F_BYTES];
 
     randombytes(sk, SK_BYTES);
-    H(pk, sk, SK_BYTES);
+    memcpy(sk + SEED_BYTES, pk, SEED_BYTES);
     expand_seed(F, F_BYTES, pk, SEED_BYTES);
     MQ_asm(pk + HASH_BYTES, sk, F);
 }
@@ -42,7 +42,6 @@ int crypto_sign(unsigned char *sm, unsigned long long *smlen,
                 const unsigned char *sk)
 {
     unsigned char F[F_BYTES];
-    unsigned char F_seed[SEED_BYTES];
     unsigned char D_sigma0[HASH_BYTES * 2];  // Concatenated for convenient H().
     unsigned char *D = D_sigma0;
     unsigned char *sigma0 = D_sigma0 + HASH_BYTES;
@@ -61,8 +60,7 @@ int crypto_sign(unsigned char *sm, unsigned long long *smlen,
     int i, j, ch_count = 0;
     Keccak_HashInstance keccak;
 
-    H(F_seed, sk, SK_BYTES);
-    expand_seed(F, F_BYTES, F_seed, SEED_BYTES);
+    expand_seed(F, F_BYTES, sk+SEED_BYTES, SEED_BYTES);
 
     assert(SIG_LEN > SK_BYTES);
     memcpy(sm + SIG_LEN - SK_BYTES, sk, SK_BYTES);

@@ -3,8 +3,8 @@
 
 #include "gf31.h"
 
-extern void MQ_asm(gf31 *fx, const gf31 *x, const gf31 *F);
+void MQ(gf31 *fx, const gf31 *x, const signed char *F);
 
-extern void G_asm(gf31 *fx, const gf31 *x, const gf31 *y, const gf31 *F);
+void G(gf31 *fx, const gf31 *x, const gf31 *y, const signed char *F);
 
 #endif

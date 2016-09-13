@@ -24,8 +24,7 @@ void randombytes(unsigned char *x, unsigned long long xlen)
     while (xlen > 0) {
         if (xlen < 1048576) {
             i = xlen;
-        }
-        else {
+        } else {
             i = 1048576;
         }
         i = read(fd, x, i);
