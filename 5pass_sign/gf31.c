@@ -4,6 +4,28 @@
 #include "KeccakHash.h"
 #include "gf31.h"
 
+#ifdef REFERENCE
+
+void vgf31_unique(gf31 *out, gf31 *in)
+{
+    int i;
+
+    for (i = 0; i < N; i++) {
+        out[i] = (1 - (in[i] == 31)) * in[i];
+    }
+}
+
+void vgf31_shorten_unique(gf31 *out, gf31 *in)
+{
+    int i;
+
+    for (i = 0; i < N; i++) {
+        out[i] = in[i] % 31;
+    }
+}
+
+#else
+
 /* This function acts on vectors with 64 gf31 elements. */
 void vgf31_unique(gf31 *out, gf31 *in)
 {
@@ -35,6 +57,8 @@ void vgf31_shorten_unique(gf31 *out, gf31 *in)
         _mm256_storeu_si256((__m256i*)(out + i*16), x);
     }
 }
+
+#endif
 
 void gf31_nrand(gf31 *out, const int len, const unsigned char *seed, const int seedlen)
 {

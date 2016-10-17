@@ -1,9 +1,15 @@
+# uncomment this when compiling for non-avx2 platforms
+#VARS = -DREFERENCE
+
 CC = /usr/bin/gcc
 CPP = /usr/bin/g++
-CFLAGS = -Wall -Wextra -O3 -mavx2 -faggressive-loop-optimizations -funroll-loops -std=c11
+CFLAGS = -Wall -Wextra -O3 -faggressive-loop-optimizations -funroll-loops -std=c11
+CFLAGS += $(VARS)
+CFLAGS += -mavx2
 
 OBJS = randombytes.o sign.o params.h gf31.o mq.o measure/tools.o
 OBJS += ../KeccakCodePackage/bin/Haswell/libkeccak.a
+# OBJS += ../KeccakCodePackage/bin/generic64/libkeccak.a
 
 DEPS = params.h mq.h randombytes.h sign.h gf31.h measure/tools.h
 

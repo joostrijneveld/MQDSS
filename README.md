@@ -17,6 +17,8 @@ Then in order to build the Keccak library file, execute in the KCP directory:
 
         `make Haswell/libkeccak.a`
 
+    (or for different platform/generic64, whichever is appropriate).
+
 Finally, in the 3pass or 5pass directory, run:
 
         `make`

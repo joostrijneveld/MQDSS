@@ -3,12 +3,8 @@
 
 typedef unsigned short gf31;
 
-int gf31_is31(gf31 x);
-
-gf31 gf31_unique(gf31 x);
 void vgf31_unique(gf31 *out, gf31 *in);
 
-gf31 gf31_shorten(gf31 x);
 void vgf31_shorten(gf31 *out, gf31 *in);
 void vgf31_shorten_unique(gf31 *out, gf31 *in);
 
