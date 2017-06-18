@@ -1,10 +1,11 @@
-CC = /usr/bin/gcc
-CFLAGS = -Wall -Wextra -O3
+CC = /usr/bin/cc
+CFLAGS = -Wall -Wextra -O3 -funroll-loops -std=c11
 
-OBJS = randombytes.o sign.o params.h mq.o gen_MQ.S gen_G.S gen_ROL256.S measure/tools.o
+SOURCES = mq.c randombytes.c sign.c
+HEADERS = mq.h randombytes.h sign.h params.h
+
+OBJS = gen_MQ.s gen_G.s gen_ROL256.s
 OBJS += ../KeccakCodePackage/bin/Haswell/libkeccak.a
-
-DEPS = params.h mq.h randombytes.h sign.h measure/tools.h
 
 # I feel like there should be a better way to do this..
 CFLAGS += -I../KeccakCodePackage/Modes\
@@ -23,17 +24,14 @@ all: tests measurements
 tests: $(TESTS)
 measurements: $(MEASUREMENTS)
 
-gen_%.S: asmgen/gen_%.py
+gen_%.s: asmgen/gen_%.py
 	python3 $^ > $@
 
-%.o: %.c $(DEPS)
-	$(CC) $(CFLAGS) -c -o $@ $<
+test/%: test/%.c $(SOURCES) $(OBJS) $(HEADERS)
+	$(CC) $(CFLAGS) -o $@ $(SOURCES) $(OBJS) $< -lcrypto
 
-test/%: test/%.c $(OBJS)
-	$(CC) $(CFLAGS) $^ -o $@ -lcrypto
-
-measure/%: measure/%.c $(OBJS)
-	$(CC) $(CFLAGS) $^ -o $@ -lcrypto
+measure/%: measure/%.c $(SOURCES) $(OBJS) $(HEADERS)
+	$(CC) $(CFLAGS) -o $@ $(SOURCES) $(OBJS) $< -lcrypto
 
 .PHONY: clean
 .PRECIOUS: $(OBJS)
@@ -43,5 +41,5 @@ clean:
 	rm -f measure/tools.o
 	rm -f $(TESTS)
 	rm -f $(MEASUREMENTS)
-	rm -f gen_*.S
+	rm -f gen_*.s
 	rm -rf asmgen/__pycache__

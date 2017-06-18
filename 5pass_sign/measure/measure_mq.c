@@ -10,6 +10,8 @@
 #define MEASURE_ASMROUNDS 100000  // More rounds == more meaningful average.
 #define MEASURE_ROUNDS 5
 
+#include "tools.c"
+
 int main()
 {
     gf31 x[N];

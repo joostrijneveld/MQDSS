@@ -69,11 +69,6 @@ static inline __m256i reduce_16(__m256i r, __m256i _w31, __m256i _w2114)
     return _mm256_sub_epi16(r, _mm256_mullo_epi16(_w31, exp));
 }
 
-static inline __m256i shorten_16(__m256i r, __m256i _w31)
-{
-    return _mm256_add_epi16(r&_w31, _mm256_srai_epi16(r, 5));
-}
-
 static inline
 void calc_quadratic_terms_rec_32_avx2(unsigned char *xixj, __m256i xi, __m256i xj, __m256i mask_2114, __m256i mask_reduce)
 {

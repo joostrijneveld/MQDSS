@@ -9,6 +9,8 @@
 #define MLEN 32
 #define MEASURE_ROUNDS 200  // More rounds == more meaningful average.
 
+#include "tools.c"
+
 int main()
 {
     unsigned char pk[PK_BYTES];

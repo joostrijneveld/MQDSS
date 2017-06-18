@@ -1,17 +1,14 @@
+CC = /usr/bin/cc
+CFLAGS = -Wall -Wextra -Wpedantic -O3 -funroll-loops -std=c11
 # uncomment this when compiling for non-avx2 platforms
-#VARS = -DREFERENCE
-
-CC = /usr/bin/gcc
-CPP = /usr/bin/g++
-CFLAGS = -Wall -Wextra -O3 -faggressive-loop-optimizations -funroll-loops -std=c11
-CFLAGS += $(VARS)
+# CFLAGS += -DREFERENCE
 CFLAGS += -mavx2
 
-OBJS = randombytes.o sign.o params.h gf31.o mq.o measure/tools.o
-OBJS += ../KeccakCodePackage/bin/Haswell/libkeccak.a
-# OBJS += ../KeccakCodePackage/bin/generic64/libkeccak.a
+SOURCES = mq.c randombytes.c sign.c gf31.c
+HEADERS = mq.h randombytes.h sign.h gf31.h params.h
 
-DEPS = params.h mq.h randombytes.h sign.h gf31.h measure/tools.h
+OBJS = ../KeccakCodePackage/bin/Haswell/libkeccak.a
+# OBJS += ../KeccakCodePackage/bin/generic64/libkeccak.a
 
 CFLAGS += -I../KeccakCodePackage/Modes\
 		  -I../KeccakCodePackage/Common\
@@ -26,20 +23,14 @@ MEASURE = $(patsubst measure/measure_%.c,measure/measure_%,$(wildcard measure/me
 
 all: tests measure
 
-mq_test: $(OBJS) mq_test.o
-	$(CC) $(CFLAGS) $^ -o $@ -lcrypto
-
 tests: $(TESTS)
 measure: $(MEASURE)
 
-%.o: %.c $(DEPS)
-	$(CC) $(CFLAGS) -c -o $@ $<
+test/%: test/%.c $(SOURCES) $(OBJS) $(HEADERS)
+	$(CC) $(CFLAGS) -o $@ $(SOURCES) $(OBJS) $< -lcrypto
 
-test/%: test/%.c $(OBJS)
-	$(CC) $(CFLAGS) $^ -o $@ -lcrypto
-
-measure/%: measure/%.c $(OBJS)
-	$(CC) $(CFLAGS) $^ -o $@ -lcrypto
+measure/%: measure/%.c $(SOURCES) $(OBJS) $(HEADERS)
+	$(CC) $(CFLAGS) -o $@ $(SOURCES) $(OBJS) $< -lcrypto
 
 .PHONY: clean
 .PRECIOUS: $(OBJS)

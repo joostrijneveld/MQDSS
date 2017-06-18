@@ -9,6 +9,8 @@
 #define MEASURE_ASMROUNDS 10000  // More rounds == more meaningful average.
 #define MEASURE_ROUNDS 100
 
+#include "tools.c"
+
 int main()
 {
     unsigned char x[N_BYTES];
