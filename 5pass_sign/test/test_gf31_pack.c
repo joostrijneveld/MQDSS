@@ -26,8 +26,10 @@ int main()
 {
     int r1;
 
-    r1 = test_pack_unpack();
     printf("Testing if unpack(pack(x)) == x.. ");
+    fflush(stdout);
+
+    r1 = test_pack_unpack();
     printf(r1 ? "FAIL!" : "Success.");
     printf("\n");
 

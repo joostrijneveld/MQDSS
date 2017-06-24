@@ -44,8 +44,10 @@ int test_polarform_GF2()
 
 int main()
 {
-    int r = test_polarform_GF2();
     printf("Testing polar form equation.. ");
+    fflush(stdout);
+
+    int r = test_polarform_GF2();
     printf(r ? "FAIL!" : "Success.");
     printf("\n");
     return r;

@@ -2,6 +2,21 @@
 #include "params.h"
 #include "mq.h"
 
+#ifdef REFERENCE
+
+// If we're compiling for non-AVX2, short-circuit the asm functions to ref code
+
+void MQ_asm(unsigned char *fx, const unsigned char *x, const unsigned char *F) {
+    MQ(fx, x, F);
+}
+
+void G_asm(unsigned char *fx, const unsigned char *x, const unsigned char *y,
+           const unsigned char *F) {
+    G(fx, x, y, F);
+}
+
+#endif
+
 void ROL_NBYTES(unsigned char *out, const unsigned char *in)
 {
     int i;

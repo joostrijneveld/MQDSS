@@ -44,13 +44,15 @@ int main()
 {
     int r1, r2;
 
-    r1 = test_gf31_nrand();
     printf("Testing range [0, 30] of gf31_nrand.. ");
+    fflush(stdout);
+    r1 = test_gf31_nrand();
     printf(r1 ? "FAIL!" : "Success.");
     printf("\n");
 
-    r2 = test_gf31_nrand_schar();
     printf("Testing range [-15, 15] of gf31_nrand_schar.. ");
+    fflush(stdout);
+    r2 = test_gf31_nrand_schar();
     printf(r1 ? "FAIL!" : "Success.");
     printf("\n");
 

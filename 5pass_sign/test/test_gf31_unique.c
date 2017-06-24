@@ -27,8 +27,9 @@ int main()
 {
     int r1;
 
-    r1 = test_vgf31_unique();
     printf("Testing vgf31_unique.. ");
+    fflush(stdout);
+    r1 = test_vgf31_unique();
     printf(r1 ? "FAIL!" : "Success.");
     printf("\n");
 

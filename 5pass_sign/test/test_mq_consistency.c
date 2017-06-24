@@ -47,8 +47,9 @@ int test_consistency()
 
 int main()
 {
-    int r = test_consistency();
     printf("Testing if MQ and G are deterministic.. ");
+    fflush(stdout);
+    int r = test_consistency();
     printf(r ? "FAIL!" : "Success.");
     printf("\n");
     return r;

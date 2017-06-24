@@ -1,6 +1,5 @@
 #include <string.h>
 #include <assert.h>
-#include <openssl/sha.h>
 #include "randombytes.h"
 #include "sign.h"
 #include "params.h"

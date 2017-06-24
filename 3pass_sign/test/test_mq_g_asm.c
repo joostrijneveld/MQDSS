@@ -48,13 +48,17 @@ int main()
 {
     int r1, r2;
 
-    r1 = test_MQ_asm();
     printf("Comparing MQ and MQ_asm.. ");
+    fflush(stdout);
+
+    r1 = test_MQ_asm();
     printf(r1 ? "FAIL!" : "Success.");
     printf("\n");
 
-    r2 = test_G_asm();
     printf("Comparing G and G_asm.. ");
+    fflush(stdout);
+
+    r2 = test_G_asm();
     printf(r2 ? "FAIL!" : "Success.");
     printf("\n");
 

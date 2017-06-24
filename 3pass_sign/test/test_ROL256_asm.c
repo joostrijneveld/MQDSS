@@ -5,6 +5,9 @@
 #include "../params.h"
 #include "../mq.h"
 
+// This test is meaningless without asm code
+#ifndef REFERENCE
+
 extern void ROL256_asm(unsigned char *out, const unsigned char *in);
 
 int test_ROL256_asm_circular()
@@ -46,15 +49,28 @@ int main()
 {
     int r1, r2;
 
-    r1 = test_ROL256_asm();
     printf("Comparing ROL_NBYTES and ROL256_asm.. ");
+    fflush(stdout);
+
+    r1 = test_ROL256_asm();
     printf(r1 ? "FAIL!" : "Success.");
     printf("\n");
 
-    r2 = test_ROL256_asm_circular();
     printf("Testing if ROL256_asm is circular.. ");
+    fflush(stdout);
+
+    r2 = test_ROL256_asm_circular();
     printf(r2 ? "FAIL!" : "Success.");
     printf("\n");
 
     return r1 | r2;
 }
+
+#else
+
+int main()
+{
+    return 0;
+}
+
+#endif

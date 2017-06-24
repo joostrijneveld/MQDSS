@@ -18,6 +18,7 @@ int main()
     int i;
 
     printf("Testing signature correctness..");
+    fflush(stdout);
 
     for (i = 0; i < 100; i++) {
         crypto_sign_keypair(pk, sk);

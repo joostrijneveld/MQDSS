@@ -28,8 +28,9 @@ int main()
 {
     int r1;
 
-    r1 = test_gf31shorten_unique();
     printf("Testing vgf31_shorten_unique(x) = x %% 31.. ");
+    fflush(stdout);
+    r1 = test_gf31shorten_unique();
     printf(r1 ? "FAIL!" : "Success.");
     printf("\n");
 
