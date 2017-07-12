@@ -1,21 +1,21 @@
 #include <string.h>
 #include <assert.h>
+#include <stdint.h>
 #include "randombytes.h"
 #include "sign.h"
 #include "params.h"
 #include "mq.h"
-#include "SimpleFIPS202.h"
-#include "KeccakHash.h"
+#include "fips202.h"
 
 static void expand_seed(unsigned char* out, const unsigned int len,
                         const unsigned char *seed, const unsigned int seedlen)
 {
-    SHAKE128(out, len, seed, seedlen);
+    shake128(out, len, seed, seedlen);
 }
 
 void H(unsigned char *out, const unsigned char *in, const unsigned int len)
 {
-    SHA3_256(out, in, len);
+    sha3256(out, in, len);
 }
 
 void com(unsigned char *c, const unsigned char *inn, const unsigned char *inm)
@@ -23,7 +23,7 @@ void com(unsigned char *c, const unsigned char *inn, const unsigned char *inm)
     unsigned char buffer[N_BYTES + M_BYTES];
     memcpy(buffer, inn, N_BYTES);
     memcpy(buffer+N_BYTES, inm, M_BYTES);
-    SHA3_256(c, buffer, N_BYTES + M_BYTES);
+    sha3256(c, buffer, N_BYTES + M_BYTES);
 }
 
 void crypto_sign_keypair(unsigned char *pk, unsigned char *sk)
@@ -54,10 +54,10 @@ int crypto_sign(unsigned char *sm, unsigned long long *smlen,
     unsigned char e1[M_BYTES * ROUNDS];
     unsigned char gx[M_BYTES * ROUNDS];
     unsigned char c[HASH_BYTES * ROUNDS * 3];
-    unsigned char h[HASH_BYTES];
+    unsigned char shakeblock[SHAKE128_RATE];
+    uint64_t shakestate[25] = {0};
     unsigned char ch;
     int i, j, ch_count = 0;
-    Keccak_HashInstance keccak;
 
     expand_seed(F, F_BYTES, sk+SEED_BYTES, SEED_BYTES);
 
@@ -99,18 +99,16 @@ int crypto_sign(unsigned char *sm, unsigned long long *smlen,
     memcpy(sm, sigma0, HASH_BYTES);
     sm += HASH_BYTES;  // Compensate for sigma_0.
 
-    Keccak_HashInitialize_SHAKE128(&keccak);
-    Keccak_HashUpdate(&keccak, D_sigma0, 2 * HASH_BYTES * 8);
-    Keccak_HashFinal(&keccak, h);
-    Keccak_HashSqueeze(&keccak, h, HASH_BYTES * 8);
+    shake128_absorb(shakestate, D_sigma0, 2 * HASH_BYTES);
+    shake128_squeezeblocks(shakeblock, 1, shakestate);
 
     for (i = 0; i < ROUNDS; i++) {
         do {
-            ch = h[ch_count >> 2] >> ((ch_count & 3) << 1) & 3;
+            ch = shakeblock[ch_count >> 2] >> ((ch_count & 3) << 1) & 3;
             ch_count++;
-            if (ch_count == HASH_BYTES * 4) {
+            if (ch_count == SHAKE128_RATE * 4) {
                 ch_count = 0;
-                Keccak_HashSqueeze(&keccak, h, HASH_BYTES * 8);
+                shake128_squeezeblocks(shakeblock, 1, shakestate);
             }
         } while (ch == 3);
 
@@ -151,9 +149,9 @@ int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
     unsigned char x[N_BYTES];
     unsigned char y[M_BYTES];
     unsigned char z[M_BYTES];
-    unsigned char h[HASH_BYTES];
+    unsigned char shakeblock[SHAKE128_RATE];
+    uint64_t shakestate[25] = {0};
     int ch, i, j, ch_count = 0;
-    Keccak_HashInstance keccak;
 
     memcpy(m, sm, HASH_BYTES);  // Copy R to m.
     memcpy(m + HASH_BYTES, sm + SIG_LEN, smlen - SIG_LEN); // Copy message.
@@ -166,18 +164,16 @@ int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
     memcpy(sigma0, sm, HASH_BYTES);
     sm += HASH_BYTES;
 
-    Keccak_HashInitialize_SHAKE128(&keccak);
-    Keccak_HashUpdate(&keccak, D_sigma0, 2 * HASH_BYTES * 8);
-    Keccak_HashFinal(&keccak, h);
-    Keccak_HashSqueeze(&keccak, h, HASH_BYTES * 8);
+    shake128_absorb(shakestate, D_sigma0, 2 * HASH_BYTES);
+    shake128_squeezeblocks(shakeblock, 1, shakestate);
 
     for (i = 0; i < ROUNDS; i++) {
         do {
-            ch = h[ch_count >> 2] >> ((ch_count & 3) << 1) & 3;
+            ch = shakeblock[ch_count >> 2] >> ((ch_count & 3) << 1) & 3;
             ch_count++;
-            if (ch_count == HASH_BYTES * 4) {
+            if (ch_count == SHAKE128_RATE * 4) {
                 ch_count = 0;
-                Keccak_HashSqueeze(&keccak, h, HASH_BYTES * 8);
+                shake128_squeezeblocks(shakeblock, 1, shakestate);
             }
         } while (ch == 3);
 

@@ -1,7 +1,8 @@
 #include <assert.h>
 #include <immintrin.h>
+#include <stdint.h>
 #include "params.h"
-#include "KeccakHash.h"
+#include "fips202.h"
 #include "gf31.h"
 
 #ifdef REFERENCE
@@ -63,20 +64,17 @@ void vgf31_shorten_unique(gf31 *out, gf31 *in)
 void gf31_nrand(gf31 *out, const int len, const unsigned char *seed, const int seedlen)
 {
     int i = 0, j;
-    const int buflen = 128;
-    unsigned char buf[buflen];
-    Keccak_HashInstance keccak;
+    uint64_t shakestate[25] = {0};
+    unsigned char shakeblock[SHAKE128_RATE];
 
-    Keccak_HashInitialize_SHAKE128(&keccak);
-    Keccak_HashUpdate(&keccak, seed, seedlen);
-    Keccak_HashFinal(&keccak, buf);
+    shake128_absorb(shakestate, seed, seedlen);
 
     // TODO should not only use the 5 low bits of a byte!
     while (i < len) {
-        Keccak_HashSqueeze(&keccak, buf, buflen * 8);
-        for (j = 0; j < buflen && i < len; j++) {
-            if ((buf[j] & 31) != 31) {
-                out[i] = (buf[j] & 31);
+        shake128_squeezeblocks(shakeblock, 1, shakestate);
+        for (j = 0; j < SHAKE128_RATE && i < len; j++) {
+            if ((shakeblock[j] & 31) != 31) {
+                out[i] = (shakeblock[j] & 31);
                 i++;
             }
         }
@@ -86,20 +84,17 @@ void gf31_nrand(gf31 *out, const int len, const unsigned char *seed, const int s
 void gf31_nrand_schar(signed char *out, const int len, const unsigned char *seed, const int seedlen)
 {
     int i = 0, j;
-    const int buflen = 128;
-    unsigned char buf[buflen];
-    Keccak_HashInstance keccak;
+    uint64_t shakestate[25] = {0};
+    unsigned char shakeblock[SHAKE128_RATE];
 
-    Keccak_HashInitialize_SHAKE128(&keccak);
-    Keccak_HashUpdate(&keccak, seed, seedlen);
-    Keccak_HashFinal(&keccak, buf);
+    shake128_absorb(shakestate, seed, seedlen);
 
     // TODO should not only use the 5 low bits of a byte!
     while (i < len) {
-        Keccak_HashSqueeze(&keccak, buf, buflen * 8);
-        for (j = 0; j < buflen && i < len; j++) {
-            if ((buf[j] & 31) != 31) {
-                out[i] = (buf[j] & 31) - 15;
+        shake128_squeezeblocks(shakeblock, 1, shakestate);
+        for (j = 0; j < SHAKE128_RATE && i < len; j++) {
+            if ((shakeblock[j] & 31) != 31) {
+                out[i] = (shakeblock[j] & 31) - 15;
                 i++;
             }
         }

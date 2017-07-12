@@ -1,16 +1,16 @@
 #include <string.h>
 #include <assert.h>
+#include <stdint.h>
 #include "randombytes.h"
 #include "sign.h"
 #include "params.h"
 #include "mq.h"
 #include "gf31.h"
-#include "SimpleFIPS202.h"
-#include "KeccakHash.h"
+#include "fips202.h"
 
 void H(unsigned char *out, const unsigned char *in, const unsigned int len)
 {
-    SHA3_256(out, in, len);
+    sha3256(out, in, len);
 }
 
 void com_0(unsigned char *c,
@@ -21,7 +21,7 @@ void com_0(unsigned char *c,
     memcpy(buffer, inn, NPACKED_BYTES);
     memcpy(buffer + NPACKED_BYTES, inn2, NPACKED_BYTES);
     memcpy(buffer + 2*NPACKED_BYTES, inm, MPACKED_BYTES);
-    SHA3_256(c, buffer, 2*NPACKED_BYTES + MPACKED_BYTES);
+    sha3256(c, buffer, 2*NPACKED_BYTES + MPACKED_BYTES);
 }
 
 void com_1(unsigned char *c, const unsigned char *inn, const unsigned char *inm)
@@ -29,7 +29,7 @@ void com_1(unsigned char *c, const unsigned char *inn, const unsigned char *inm)
     unsigned char buffer[NPACKED_BYTES + MPACKED_BYTES];
     memcpy(buffer, inn, NPACKED_BYTES);
     memcpy(buffer + NPACKED_BYTES, inm, MPACKED_BYTES);
-    SHA3_256(c, buffer, NPACKED_BYTES + MPACKED_BYTES);
+    sha3256(c, buffer, NPACKED_BYTES + MPACKED_BYTES);
 }
 
 void crypto_sign_keypair(unsigned char *pk, unsigned char *sk)
@@ -60,7 +60,8 @@ int crypto_sign(unsigned char *sm, unsigned long long *smlen,
     unsigned char *h0 = D_sigma0_h0_sigma1 + 2*HASH_BYTES;
     unsigned char *t1packed = D_sigma0_h0_sigma1 + 3*HASH_BYTES;
     unsigned char *e1packed = D_sigma0_h0_sigma1 + 3*HASH_BYTES + ROUNDS * NPACKED_BYTES;
-    unsigned char h[HASH_BYTES];
+    uint64_t shakestate[25] = {0};
+    unsigned char shakeblock[SHAKE128_RATE];
     unsigned char h1[((ROUNDS >> 3) + 7) & ~7];
     unsigned char rnd_seed[HASH_BYTES + SK_BYTES];
     gf31 sk_gf31[N];
@@ -80,7 +81,6 @@ int crypto_sign(unsigned char *sm, unsigned long long *smlen,
     int alpha_count = 0;
     unsigned char b;
     int i, j;
-    Keccak_HashInstance keccak;
 
     gf31_nrand_schar(F, F_LEN, sk+SEED_BYTES, SEED_BYTES);
 
@@ -121,22 +121,21 @@ int crypto_sign(unsigned char *sm, unsigned long long *smlen,
     }
 
     H(sigma0, c, HASH_BYTES * ROUNDS * 2);  // Compute sigma_0.
-    Keccak_HashInitialize_SHAKE128(&keccak);
-    Keccak_HashUpdate(&keccak, D_sigma0_h0_sigma1, 2 * HASH_BYTES * 8);
-    Keccak_HashFinal(&keccak, h0);
-    Keccak_HashSqueeze(&keccak, h0, HASH_BYTES * 8);
+    shake128_absorb(shakestate, D_sigma0_h0_sigma1, 2 * HASH_BYTES);
+    shake128_squeezeblocks(shakeblock, 1, shakestate);
+
+    memcpy(h0, shakeblock, HASH_BYTES);
 
     memcpy(sm, sigma0, HASH_BYTES);
     sm += HASH_BYTES;  // Compensate for sigma_0.
 
-    memcpy(h, h0, HASH_BYTES);  // Since we want to preserve the original h0.
     for (i = 0; i < ROUNDS; i++) {
         do {
-            alpha = h[alpha_count] & 31;
+            alpha = shakeblock[alpha_count] & 31;
             alpha_count++;
-            if (alpha_count == HASH_BYTES) {
+            if (alpha_count == SHAKE128_RATE) {
                 alpha_count = 0;
-                Keccak_HashSqueeze(&keccak, h, HASH_BYTES * 8);
+                shake128_squeezeblocks(shakeblock, 1, shakestate);
             }
         } while (alpha == 31);
         for (j = 0; j < N; j++) {
@@ -157,7 +156,7 @@ int crypto_sign(unsigned char *sm, unsigned long long *smlen,
     memcpy(sm, e1packed, MPACKED_BYTES * ROUNDS);
     sm += MPACKED_BYTES * ROUNDS;
 
-    SHAKE128(h1, ((ROUNDS >> 3) + 7) & ~7, D_sigma0_h0_sigma1, 3*HASH_BYTES + ROUNDS*(NPACKED_BYTES + MPACKED_BYTES));
+    shake128(h1, ((ROUNDS >> 3) + 7) & ~7, D_sigma0_h0_sigma1, 3*HASH_BYTES + ROUNDS*(NPACKED_BYTES + MPACKED_BYTES));
 
     for (i = 0; i < ROUNDS; i++) {
         b = (h1[(i >> 3)] >> (i & 7)) & 1;
@@ -196,12 +195,12 @@ int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
     gf31 z[M];
     unsigned char packbuf0[NPACKED_BYTES];
     unsigned char packbuf1[MPACKED_BYTES];
-    unsigned char h[HASH_BYTES];
+    uint64_t shakestate[25] = {0};
+    unsigned char shakeblock[SHAKE128_RATE];
     int i, j;
     gf31 alpha;
     int alpha_count = 0;
     unsigned char b;
-    Keccak_HashInstance keccak;
 
     memcpy(m, sm, HASH_BYTES);  // Copy R to m.
     memcpy(m + HASH_BYTES, sm + SIG_LEN, smlen - SIG_LEN);  // Copy message.
@@ -214,11 +213,10 @@ int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
 
     memcpy(sigma0, sm, HASH_BYTES);
 
-    Keccak_HashInitialize_SHAKE128(&keccak);
-    Keccak_HashUpdate(&keccak, D_sigma0_h0_sigma1, 2 * HASH_BYTES * 8);
-    Keccak_HashFinal(&keccak, h0);
-    Keccak_HashSqueeze(&keccak, h0, HASH_BYTES * 8);
-    memcpy(h, h0, HASH_BYTES);
+    shake128_absorb(shakestate, D_sigma0_h0_sigma1, 2 * HASH_BYTES);
+    shake128_squeezeblocks(shakeblock, 1, shakestate);
+
+    memcpy(h0, shakeblock, HASH_BYTES);
 
     sm += HASH_BYTES;
 
@@ -227,15 +225,15 @@ int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
     memcpy(e1packed, sm, ROUNDS * MPACKED_BYTES);
     sm += ROUNDS*MPACKED_BYTES;
 
-    SHAKE128(h1, ((ROUNDS >> 3) + 7) & ~7, D_sigma0_h0_sigma1, 3*HASH_BYTES + ROUNDS*(NPACKED_BYTES + MPACKED_BYTES));
+    shake128(h1, ((ROUNDS >> 3) + 7) & ~7, D_sigma0_h0_sigma1, 3*HASH_BYTES + ROUNDS*(NPACKED_BYTES + MPACKED_BYTES));
 
     for (i = 0; i < ROUNDS; i++) {
         do {
-            alpha = h[alpha_count] & 31;
+            alpha = shakeblock[alpha_count] & 31;
             alpha_count++;
-            if (alpha_count == HASH_BYTES) {
+            if (alpha_count == SHAKE128_RATE) {
                 alpha_count = 0;
-                Keccak_HashSqueeze(&keccak, h, HASH_BYTES * 8);
+                shake128_squeezeblocks(shakeblock, 1, shakestate);
             }
         } while (alpha == 31);
         b = (h1[(i >> 3)] >> (i & 7)) & 1;
