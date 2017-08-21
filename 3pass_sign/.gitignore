@@ -1,0 +1,9 @@
+__pycache__
+measure/*
+!measure/*.c
+!measure/*.h
+test/*
+!test/*.c
+!test/*.h
+gen_*.S
+*.o

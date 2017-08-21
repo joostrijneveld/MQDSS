@@ -1,15 +1,5 @@
 CC = /usr/bin/cc
-CFLAGS = -Wall -Wextra -Wpedantic -O3 -funroll-loops -std=c11
-
-# toggle this when compiling for non-avx2 platforms
-PLATFORM = Haswell
-# PLATFORM = generic64
-
-ifeq ($(PLATFORM), Haswell)
-	CFLAGS += -mavx2
-else
-	CFLAGS += -DREFERENCE
-endif
+CFLAGS = -Wall -Wextra -Wpedantic -O3 -funroll-loops -std=c11 -march=native
 
 SOURCES = mq.c randombytes.c sign.c gf31.c fips202.c
 HEADERS = mq.h randombytes.h sign.h gf31.h fips202.h params.h
@@ -39,3 +29,4 @@ clean:
 	-$(RM) test/keypair
 	-$(RM) test/sign
 	-$(RM) test/open
+	-$(RM) test/mq

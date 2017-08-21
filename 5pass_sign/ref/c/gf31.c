@@ -5,8 +5,6 @@
 #include "fips202.h"
 #include "gf31.h"
 
-#ifdef REFERENCE
-
 void vgf31_unique(gf31 *out, gf31 *in)
 {
     int i;
@@ -24,42 +22,6 @@ void vgf31_shorten_unique(gf31 *out, gf31 *in)
         out[i] = in[i] % 31;
     }
 }
-
-#else
-
-/* This function acts on vectors with 64 gf31 elements. */
-void vgf31_unique(gf31 *out, gf31 *in)
-{
-    __m256i x;
-    __m256i _w31 = _mm256_set1_epi16(31);
-    int i;
-
-    for (i = 0; i < 4; ++i) {
-        x = _mm256_loadu_si256((__m256i const *) (in + 16*i));
-        x = _mm256_xor_si256(x, _mm256_and_si256(_w31, _mm256_cmpeq_epi16(x, _w31)));
-        _mm256_storeu_si256((__m256i*)(out + i*16), x);
-    }
-}
-
-/* This function acts on vectors with 64 gf31 elements.
-It performs one reduction step and guarantees output in [0, 30],
-but requires input to be in [0, 32768). */
-void vgf31_shorten_unique(gf31 *out, gf31 *in)
-{
-    __m256i x;
-    __m256i _w2114 = _mm256_set1_epi32(2114*65536 + 2114);
-    __m256i _w31 = _mm256_set1_epi16(31);
-    int i;
-
-    for (i = 0; i < 4; ++i) {
-        x = _mm256_loadu_si256((__m256i const *) (in + 16*i));
-        x = _mm256_sub_epi16(x, _mm256_mullo_epi16(_w31, _mm256_mulhi_epi16(x, _w2114)));
-        x = _mm256_xor_si256(x, _mm256_and_si256(_w31, _mm256_cmpeq_epi16(x, _w31)));
-        _mm256_storeu_si256((__m256i*)(out + i*16), x);
-    }
-}
-
-#endif
 
 void gf31_nrand(gf31 *out, const int len, const unsigned char *seed, const int seedlen)
 {
