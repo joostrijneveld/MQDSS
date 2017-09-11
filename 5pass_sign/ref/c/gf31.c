@@ -5,6 +5,23 @@
 #include "fips202.h"
 #include "gf31.h"
 
+gf31 mod31(gf31 x)
+{
+    gf31 t;
+
+    t = x & 31;
+    x >>= 5;
+    t += x & 31;
+    x >>= 5;
+    t += x & 31;
+    x >>= 5;
+    t += x & 31;
+    x >>= 5;
+    t = (t >> 5) + (t & 31);
+    t = (t >> 5) + (t & 31);
+    return (t != 31)*t;
+}
+
 void vgf31_unique(gf31 *out, gf31 *in)
 {
     int i;
@@ -19,7 +36,7 @@ void vgf31_shorten_unique(gf31 *out, gf31 *in)
     int i;
 
     for (i = 0; i < N; i++) {
-        out[i] = in[i] % 31;
+        out[i] = mod31(in[i]);
     }
 }
 
