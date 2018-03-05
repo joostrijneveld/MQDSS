@@ -85,7 +85,7 @@ int crypto_sign(unsigned char *sm, unsigned long long *smlen,
     unsigned char *e1packed = D_sigma0_h0_sigma1 + 3*HASH_BYTES + ROUNDS * NPACKED_BYTES;
     uint64_t shakestate[25] = {0};
     unsigned char shakeblock[SHAKE256_RATE];
-    unsigned char h1[((ROUNDS >> 3) + 7) & ~7];
+    unsigned char h1[((ROUNDS + 7) & ~7) >> 3];
     unsigned char rnd_seed[HASH_BYTES + SEED_BYTES];
     gf31 sk_gf31[N];
     gf31 rnd[(2 * N + M) * ROUNDS];  // Concatenated for easy RNG.
@@ -187,7 +187,7 @@ int crypto_sign(unsigned char *sm, unsigned long long *smlen,
     memcpy(sm, e1packed, MPACKED_BYTES * ROUNDS);
     sm += MPACKED_BYTES * ROUNDS;
 
-    shake256(h1, ((ROUNDS >> 3) + 7) & ~7, D_sigma0_h0_sigma1, 3*HASH_BYTES + ROUNDS*(NPACKED_BYTES + MPACKED_BYTES));
+    shake256(h1, ((ROUNDS + 7) & ~7) >> 3, D_sigma0_h0_sigma1, 3*HASH_BYTES + ROUNDS*(NPACKED_BYTES + MPACKED_BYTES));
 
     for (i = 0; i < ROUNDS; i++) {
         b = (h1[(i >> 3)] >> (i & 7)) & 1;
@@ -224,7 +224,7 @@ int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
     unsigned char *h0 = D_sigma0_h0_sigma1 + 2*HASH_BYTES;
     unsigned char *t1packed = D_sigma0_h0_sigma1 + 3*HASH_BYTES;
     unsigned char *e1packed = D_sigma0_h0_sigma1 + 3*HASH_BYTES + ROUNDS * NPACKED_BYTES;
-    unsigned char h1[((ROUNDS >> 3) + 7) & ~7];
+    unsigned char h1[((ROUNDS + 7) & ~7) >> 3];
     unsigned char c[HASH_BYTES * ROUNDS * 2];
     memset(c, 0, HASH_BYTES*2);
     gf31 x[N];
@@ -264,7 +264,7 @@ int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
     memcpy(e1packed, sm, ROUNDS * MPACKED_BYTES);
     sm += ROUNDS*MPACKED_BYTES;
 
-    shake256(h1, ((ROUNDS >> 3) + 7) & ~7, D_sigma0_h0_sigma1, 3*HASH_BYTES + ROUNDS*(NPACKED_BYTES + MPACKED_BYTES));
+    shake256(h1, ((ROUNDS + 7) & ~7) >> 3, D_sigma0_h0_sigma1, 3*HASH_BYTES + ROUNDS*(NPACKED_BYTES + MPACKED_BYTES));
 
     for (i = 0; i < ROUNDS; i++) {
         do {
