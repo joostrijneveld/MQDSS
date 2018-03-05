@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <immintrin.h>
 #include <stdint.h>
+#include <string.h>
 #include "params.h"
 #include "fips202.h"
 #include "gf31.h"
@@ -113,6 +114,9 @@ void gf31_npack(unsigned char *out, const gf31 *in, const int n)
     for (j = 0; j < n; j++) {
         assert(in[j] < 31);
     }
+
+    /* There will be ceil(5n / 8) output blocks */
+    memset(out, 0, ((5 * n + 7) & ~7) >> 3);
 
     for (j = 0; j < n; j++) {
         if (d < 0) {
