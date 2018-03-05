@@ -7,6 +7,7 @@
 
 #define ROUNDS 269
 
+/* Assumes N and M to be multiples of 8 */
 #define NPACKED_BYTES ((N * 5) >> 3)
 #define MPACKED_BYTES ((M * 5) >> 3)
 #define FPACKED_BYTES ((F_LEN * 5) >> 3)
