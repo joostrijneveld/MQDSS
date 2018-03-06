@@ -34,3 +34,5 @@ clean:
 	-$(RM) test/sign
 	-$(RM) test/open
 	-$(RM) test/mq
+	-$(RM) test/speed
+	-$(RM) test/size

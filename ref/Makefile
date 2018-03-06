@@ -17,7 +17,7 @@ tests: $(TESTS)
 test: $(TESTS:=.exec)
 
 PQCgenKAT_sign: PQCgenKAT_sign.c $(DET_SOURCES) $(HEADERS)
-	$(CC) -o $@ $(DET_SOURCES) $< $(LDLIBS) -lcrypto
+	$(CC) $(CFLAGS) -o $@ $(DET_SOURCES) $< $(LDLIBS) -lcrypto
 
 test/%: test/%.c $(SOURCES) $(HEADERS)
 	$(CC) $(CFLAGS) -o $@ $(SOURCES) $< $(LDLIBS)
@@ -34,3 +34,5 @@ clean:
 	-$(RM) test/sign
 	-$(RM) test/open
 	-$(RM) test/mq
+	-$(RM) test/speed
+	-$(RM) test/size
