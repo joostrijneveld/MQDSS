@@ -181,6 +181,8 @@ int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
     gf31 e[M];
     signed char F[F_LEN];
     gf31 pk_gf31[M];
+    unsigned char sig[SIG_LEN];
+    unsigned char *sigptr = sig;
     unsigned char D_sigma0_h0_sigma1[HASH_BYTES * 3 + ROUNDS * (NPACKED_BYTES + MPACKED_BYTES)];
     unsigned char *D = D_sigma0_h0_sigma1;
     unsigned char *sigma0 = D_sigma0_h0_sigma1 + HASH_BYTES;
@@ -202,28 +204,36 @@ int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
     int alpha_count = 0;
     unsigned char b;
 
-    memcpy(m, sm, HASH_BYTES);  // Copy R to m.
-    memcpy(m + HASH_BYTES, sm + SIG_LEN, smlen - SIG_LEN);  // Copy message.
-    H(D, m, smlen - SIG_LEN + HASH_BYTES);
-    sm += HASH_BYTES;
+    *mlen = smlen - SIG_LEN;
+
+    /* Create a copy of the signature so that m = sm is not an issue */
+    memcpy(sig, sm, SIG_LEN);
+
+    /* Put the message all the way at the end of the m buffer, so that we can
+     * prepend the required other inputs for the hash function. */
+    memcpy(m + SIG_LEN, sm + SIG_LEN, *mlen);
+
+    memcpy(m + SIG_LEN - HASH_BYTES, sigptr, HASH_BYTES);  // Copy R to m.
+    H(D, m + SIG_LEN - HASH_BYTES, *mlen + HASH_BYTES);
+    sigptr += HASH_BYTES;
 
     gf31_nrand_schar(F, F_LEN, pk, SEED_BYTES);
     pk += SEED_BYTES;
     gf31_nunpack(pk_gf31, pk, M);
 
-    memcpy(sigma0, sm, HASH_BYTES);
+    memcpy(sigma0, sigptr, HASH_BYTES);
 
     shake128_absorb(shakestate, D_sigma0_h0_sigma1, 2 * HASH_BYTES);
     shake128_squeezeblocks(shakeblock, 1, shakestate);
 
     memcpy(h0, shakeblock, HASH_BYTES);
 
-    sm += HASH_BYTES;
+    sigptr += HASH_BYTES;
 
-    memcpy(t1packed, sm, ROUNDS * NPACKED_BYTES);
-    sm += ROUNDS*NPACKED_BYTES;
-    memcpy(e1packed, sm, ROUNDS * MPACKED_BYTES);
-    sm += ROUNDS*MPACKED_BYTES;
+    memcpy(t1packed, sigptr, ROUNDS * NPACKED_BYTES);
+    sigptr += ROUNDS*NPACKED_BYTES;
+    memcpy(e1packed, sigptr, ROUNDS * MPACKED_BYTES);
+    sigptr += ROUNDS*MPACKED_BYTES;
 
     shake128(h1, ((ROUNDS + 7) & ~7) >> 3, D_sigma0_h0_sigma1, 3*HASH_BYTES + ROUNDS*(NPACKED_BYTES + MPACKED_BYTES));
 
@@ -238,7 +248,7 @@ int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
         } while (alpha == 31);
         b = (h1[(i >> 3)] >> (i & 7)) & 1;
 
-        gf31_nunpack(r, sm, N);
+        gf31_nunpack(r, sigptr, N);
         gf31_nunpack(t, t1packed + NPACKED_BYTES*i, N);
         gf31_nunpack(e, e1packed + MPACKED_BYTES*i, M);
 
@@ -254,7 +264,7 @@ int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
             vgf31_shorten_unique(y, y);
             gf31_npack(packbuf0, x, N);
             gf31_npack(packbuf1, y, M);
-            com_0(c + HASH_BYTES*(2*i + 0), sm, packbuf0, packbuf1);
+            com_0(c + HASH_BYTES*(2*i + 0), sigptr, packbuf0, packbuf1);
         } else {
             MQ(y, r, F);
             G(z, t, r, F);
@@ -263,19 +273,21 @@ int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
             }
             vgf31_shorten_unique(y, y);
             gf31_npack(packbuf0, y, M);
-            com_1(c + HASH_BYTES*(2*i + 1), sm, packbuf0);
+            com_1(c + HASH_BYTES*(2*i + 1), sigptr, packbuf0);
         }
-        sm += NPACKED_BYTES;
-        memcpy(c + HASH_BYTES*(2*i + (1 - b)), sm, HASH_BYTES);
-        sm += HASH_BYTES;
+        sigptr += NPACKED_BYTES;
+        memcpy(c + HASH_BYTES*(2*i + (1 - b)), sigptr, HASH_BYTES);
+        sigptr += HASH_BYTES;
     }
 
     H(c, c, HASH_BYTES * ROUNDS * 2);
     if (memcmp(c, sigma0, HASH_BYTES)) {
+        memset(m, 0, *mlen);
+        *mlen = 0;
         return 1;
     }
 
-    *mlen = smlen - SIG_LEN;
-    memcpy(m, sm, smlen - SIG_LEN);
+    /* If verification was successful, move the message to the right place. */
+    memmove(m, m + SIG_LEN, *mlen);
     return 0;
 }
