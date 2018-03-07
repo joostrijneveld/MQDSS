@@ -39,7 +39,7 @@ void crypto_sign_keypair(unsigned char *pk, unsigned char *sk)
     gf31 pk_gf31[M];
 
     randombytes(sk, SK_BYTES);
-    memcpy(sk + SEED_BYTES, pk, SEED_BYTES);
+    memcpy(pk, sk + SEED_BYTES, SEED_BYTES);
     gf31_nrand_schar(F, F_LEN, pk, SEED_BYTES);
     gf31_nrand(sk_gf31, N, sk, SEED_BYTES);
     MQ(pk_gf31, sk_gf31, F);
