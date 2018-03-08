@@ -37,8 +37,7 @@ Compiler error. Un-supported parameter: N
     k=0;
     for(i=0;i<32;i++) {
         __m256i br_xi = _mm256_set1_epi16( x[i] );
-        int n_reg = (i+15)>>4;
-        for(j=0;j<=n_reg;j++) {
+        for(j=0;j<=(i >> 4);j++) {
             xixj[j] = _mm256_mullo_epi16( xi[j] , br_xi );
             xixj[j] = reduce_16( xixj[j] , mask_31 , mask_2114 );
         }
@@ -51,8 +50,7 @@ Compiler error. Un-supported parameter: N
 
     for(i=32;i<N;i++) {
         __m256i br_xi = _mm256_set1_epi16( x[i] );
-        int n_reg = (i+15)>>4;
-        for(j=0;j<=n_reg;j++) {
+        for(j=0;j<=(i >> 4);j++) {
             xixj[j] = _mm256_mullo_epi16( xi[j] , br_xi );
             xixj[j] = reduce_16( xixj[j] , mask_31 , mask_2114 );
         }
@@ -95,8 +93,7 @@ Compiler error. Un-supported parameter: N
     k=0;
     for(i=0;i<32;i++) {
         __m256i br_yixi = _mm256_set1_epi16( (x[i]<<8)^y[i] );
-        int n_reg = (i+15)>>4;
-        for(j=0;j<=n_reg;j++) {
+        for(j=0;j<=(i >> 4);j++) {
             xixj[j] = _mm256_maddubs_epi16( xiyi[j] , br_yixi );
             xixj[j] = reduce_16( xixj[j] , mask_31 , mask_2114 );
         }
@@ -109,8 +106,7 @@ Compiler error. Un-supported parameter: N
 
     for(i=32;i<N;i++) {
         __m256i br_yixi = _mm256_set1_epi16( (x[i]<<8)^y[i] );
-        int n_reg = (i+15)>>4;
-        for(j=0;j<=n_reg;j++) {
+        for(j=0;j<=(i >> 4);j++) {
             xixj[j] = _mm256_maddubs_epi16( xiyi[j] , br_yixi );
             xixj[j] = reduce_16( xixj[j] , mask_31 , mask_2114 );
         }
