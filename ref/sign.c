@@ -241,6 +241,14 @@ int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
     int alpha_count = 0;
     unsigned char b;
 
+    /* The API caller does not necessarily know what size a signature should be
+       but MQDSS signatures are always exactly SIG_LEN. */
+    if (smlen < SIG_LEN) {
+        memset(m, 0, smlen);
+        *mlen = 0;
+        return 1;
+    }
+
     *mlen = smlen - SIG_LEN;
 
     /* Create a copy of the signature so that m = sm is not an issue */
@@ -321,7 +329,7 @@ int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
 
     H(c, c, HASH_BYTES * ROUNDS * 2);
     if (memcmp(c, sigma0, HASH_BYTES)) {
-        memset(m, 0, *mlen);
+        memset(m, 0, smlen);
         *mlen = 0;
         return 1;
     }
