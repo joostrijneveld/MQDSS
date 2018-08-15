@@ -85,11 +85,11 @@ void gf31_nrand_schar(signed char *out, const int len, const unsigned char *seed
 /* Unpacks an array of packed GF31 elements to one element per gf31.
    Assumes that there is sufficient empty space available at the end of the
    array to unpack. Can perform in-place. */
-void gf31_nunpack(gf31 *out, const unsigned char *in, const int n)
+void gf31_nunpack(gf31 *out, const unsigned char *in, const unsigned int n)
 {
     int i;
-    int j = ((n * 5) >> 3) - 1;
-    int d = 0;
+    unsigned int j = ((n * 5) >> 3) - 1;
+    unsigned int d = 0;
 
     for (i = n-1; i >= 0; i--) {
         out[i] = (in[j] >> d) & 31;
@@ -105,10 +105,10 @@ void gf31_nunpack(gf31 *out, const unsigned char *in, const int n)
 /* Packs an array of GF31 elements from gf31's to concatenated 5-bit values.
    Assumes that there is sufficient space available to unpack.
    Can perform in-place. */
-void gf31_npack(unsigned char *out, const gf31 *in, const int n)
+void gf31_npack(unsigned char *out, const gf31 *in, const unsigned int n)
 {
-    int i = 0;
-    int j;
+    unsigned int i = 0;
+    unsigned int j;
     int d = 3;
 
     for (j = 0; j < n; j++) {
