@@ -5,7 +5,7 @@
 #define M N
 #define F_LEN (M * (((N * (N + 1)) >> 1) + N)) /* Number of elements in F */
 
-#define ROUNDS 269
+#define ROUNDS 135
 
 /* Number of bytes that N, M and F_LEN elements require when packed into a byte
    array, 5-bit elements packed continuously. */
@@ -15,7 +15,7 @@
 #define FPACKED_BYTES ((F_LEN * 5) >> 3)
 
 #define HASH_BYTES 32
-#define SEED_BYTES 32
+#define SEED_BYTES 16
 #define PK_BYTES (SEED_BYTES + MPACKED_BYTES)
 #define SK_BYTES SEED_BYTES
 

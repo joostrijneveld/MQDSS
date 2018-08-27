@@ -4,7 +4,7 @@ make -C ref {test/sign,test/open,test/keypair,test/mq}
 make -C avx2 {test/sign,test/open,test/keypair,test/mq}
 
 N=48
-SEED_BYTES=32
+SEED_BYTES=16
 
 keyfile=$(mktemp)
 mfile=$(mktemp)
