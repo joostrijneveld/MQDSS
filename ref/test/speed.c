@@ -68,6 +68,7 @@ int main()
 
     unsigned char m[MLEN];
     unsigned char sm[MLEN+CRYPTO_BYTES];
+    unsigned char m_out[MLEN+CRYPTO_BYTES];
     unsigned long long mlen;
     unsigned long long smlen;
 
@@ -91,7 +92,7 @@ int main()
 
     for(i=0; i<NTESTS; i++) {
         t[i] = cpucycles();
-        crypto_sign_open(m, &mlen, sm, smlen, pk);
+        crypto_sign_open(m_out, &mlen, sm, smlen, pk);
     }
     print_results("crypto_sign_open: ", t, NTESTS, 1);
 
