@@ -19,7 +19,7 @@
 #define PK_BYTES (SEED_BYTES + MPACKED_BYTES)
 #define SK_BYTES SEED_BYTES
 
-// R, sigma_0, ROUNDS * (t1, r{0,1}, e1, c)
-#define SIG_LEN (2 * HASH_BYTES + ROUNDS * (2*NPACKED_BYTES + MPACKED_BYTES + HASH_BYTES))
+// R, sigma_0, ROUNDS * (t1, r{0,1}, e1, c, rho)
+#define SIG_LEN (2 * HASH_BYTES + ROUNDS * (2*NPACKED_BYTES + MPACKED_BYTES + HASH_BYTES + HASH_BYTES))
 
 #endif

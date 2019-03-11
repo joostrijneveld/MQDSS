@@ -18,24 +18,29 @@ void H(unsigned char *out, const unsigned char *in, const unsigned int len)
 /* Takes two arrays of N packed elements and an array of M packed elements,
    and computes a HASH_BYTES commitment. */
 void com_0(unsigned char *c,
-          const unsigned char *inn, const unsigned char *inn2,
-          const unsigned char *inm)
+           const unsigned char *rho,
+           const unsigned char *inn, const unsigned char *inn2,
+           const unsigned char *inm)
 {
-    unsigned char buffer[2*NPACKED_BYTES + MPACKED_BYTES];
-    memcpy(buffer, inn, NPACKED_BYTES);
-    memcpy(buffer + NPACKED_BYTES, inn2, NPACKED_BYTES);
-    memcpy(buffer + 2*NPACKED_BYTES, inm, MPACKED_BYTES);
-    shake256(c, HASH_BYTES, buffer, 2*NPACKED_BYTES + MPACKED_BYTES);
+    unsigned char buffer[HASH_BYTES + 2*NPACKED_BYTES + MPACKED_BYTES];
+    memcpy(buffer, rho, HASH_BYTES);
+    memcpy(buffer + HASH_BYTES, inn, NPACKED_BYTES);
+    memcpy(buffer + HASH_BYTES + NPACKED_BYTES, inn2, NPACKED_BYTES);
+    memcpy(buffer + HASH_BYTES + 2*NPACKED_BYTES, inm, MPACKED_BYTES);
+    shake256(c, HASH_BYTES, buffer, HASH_BYTES + 2*NPACKED_BYTES + MPACKED_BYTES);
 }
 
 /* Takes an array of N packed elements and an array of M packed elements,
    and computes a HASH_BYTES commitment. */
-void com_1(unsigned char *c, const unsigned char *inn, const unsigned char *inm)
+void com_1(unsigned char *c,
+           const unsigned char *rho,
+           const unsigned char *inn, const unsigned char *inm)
 {
-    unsigned char buffer[NPACKED_BYTES + MPACKED_BYTES];
-    memcpy(buffer, inn, NPACKED_BYTES);
-    memcpy(buffer + NPACKED_BYTES, inm, MPACKED_BYTES);
-    shake256(c, HASH_BYTES, buffer, NPACKED_BYTES + MPACKED_BYTES);
+    unsigned char buffer[HASH_BYTES + NPACKED_BYTES + MPACKED_BYTES];
+    memcpy(buffer, rho, HASH_BYTES);
+    memcpy(buffer + HASH_BYTES, inn, NPACKED_BYTES);
+    memcpy(buffer + HASH_BYTES + NPACKED_BYTES, inm, MPACKED_BYTES);
+    shake256(c, HASH_BYTES, buffer, HASH_BYTES + NPACKED_BYTES + MPACKED_BYTES);
 }
 
 /*
@@ -73,7 +78,7 @@ int crypto_sign(unsigned char *sm, unsigned long long *smlen,
                 const unsigned char *sk)
 {
     signed char F[F_LEN];
-    unsigned char skbuf[SEED_BYTES * 3];
+    unsigned char skbuf[SEED_BYTES * 4];
     gf31 pk_gf31[M];
     unsigned char pk[SEED_BYTES + MPACKED_BYTES];
     // Concatenated for convenient hashing.
@@ -87,6 +92,9 @@ int crypto_sign(unsigned char *sm, unsigned long long *smlen,
     unsigned char shakeblock[SHAKE256_RATE];
     unsigned char h1[((ROUNDS + 7) & ~7) >> 3];
     unsigned char rnd_seed[HASH_BYTES + SEED_BYTES];
+    unsigned char rho[2 * ROUNDS * HASH_BYTES];
+    unsigned char *rho0 = rho;
+    unsigned char *rho1 = rho + ROUNDS * HASH_BYTES;
     gf31 sk_gf31[N];
     gf31 rnd[(2 * N + M) * ROUNDS];  // Concatenated for easy RNG.
     gf31 *r0 = rnd;
@@ -105,7 +113,7 @@ int crypto_sign(unsigned char *sm, unsigned long long *smlen,
     unsigned char b;
     int i, j;
 
-    shake256(skbuf, SEED_BYTES * 3, sk, SEED_BYTES);
+    shake256(skbuf, SEED_BYTES * 4, sk, SEED_BYTES);
 
     gf31_nrand_schar(F, F_LEN, skbuf, SEED_BYTES);
 
@@ -128,6 +136,10 @@ int crypto_sign(unsigned char *sm, unsigned long long *smlen,
 
     memcpy(rnd_seed, skbuf + 2*SEED_BYTES, SEED_BYTES);
     memcpy(rnd_seed + SEED_BYTES, D, HASH_BYTES);
+    shake256(rho, 2 * ROUNDS * HASH_BYTES, rnd_seed, SEED_BYTES + HASH_BYTES);
+
+    memcpy(rnd_seed, skbuf + 3*SEED_BYTES, SEED_BYTES);
+    memcpy(rnd_seed + SEED_BYTES, D, HASH_BYTES);
     gf31_nrand(rnd, (2 * N + M) * ROUNDS, rnd_seed, SEED_BYTES + HASH_BYTES);
 
     for (i = 0; i < ROUNDS; i++) {
@@ -143,12 +155,12 @@ int crypto_sign(unsigned char *sm, unsigned long long *smlen,
         gf31_npack(packbuf0, r0 + i*N, N);
         gf31_npack(packbuf1, t0 + i*N, N);
         gf31_npack(packbuf2, e0 + i*M, M);
-        com_0(c + HASH_BYTES * (2*i + 0), packbuf0, packbuf1, packbuf2);
+        com_0(c + HASH_BYTES * (2*i + 0), rho0 + i*HASH_BYTES, packbuf0, packbuf1, packbuf2);
         vgf31_shorten_unique(r1 + i*N, r1 + i*N);
         vgf31_shorten_unique(gx + i*M, gx + i*M);
         gf31_npack(packbuf0, r1 + i*N, N);
         gf31_npack(packbuf1, gx + i*M, M);
-        com_1(c + HASH_BYTES * (2*i + 1), packbuf0, packbuf1);
+        com_1(c + HASH_BYTES * (2*i + 1), rho1 + i*HASH_BYTES, packbuf0, packbuf1);
     }
 
     H(sigma0, c, HASH_BYTES * ROUNDS * 2);  // Compute sigma_0.
@@ -197,7 +209,8 @@ int crypto_sign(unsigned char *sm, unsigned long long *smlen,
             gf31_npack(sm, r1+i*N, N);
         }
         memcpy(sm + NPACKED_BYTES, c + HASH_BYTES * (2*i + (1 - b)), HASH_BYTES);
-        sm += NPACKED_BYTES + HASH_BYTES;
+        memcpy(sm + NPACKED_BYTES + HASH_BYTES, rho + (i + b * ROUNDS) * HASH_BYTES, HASH_BYTES);
+        sm += NPACKED_BYTES + 2*HASH_BYTES;
     }
     *smlen = SIG_LEN + mlen;
     return 0;
@@ -311,7 +324,7 @@ int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
             vgf31_shorten_unique(y, y);
             gf31_npack(packbuf0, x, N);
             gf31_npack(packbuf1, y, M);
-            com_0(c + HASH_BYTES*(2*i + 0), sigptr, packbuf0, packbuf1);
+            com_0(c + HASH_BYTES*(2*i + 0), sigptr + HASH_BYTES + NPACKED_BYTES, sigptr, packbuf0, packbuf1);
         } else {
             MQ(y, r, F);
             G(z, t, r, F);
@@ -320,11 +333,10 @@ int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
             }
             vgf31_shorten_unique(y, y);
             gf31_npack(packbuf0, y, M);
-            com_1(c + HASH_BYTES*(2*i + 1), sigptr, packbuf0);
+            com_1(c + HASH_BYTES*(2*i + 1), sigptr + HASH_BYTES + NPACKED_BYTES, sigptr, packbuf0);
         }
-        sigptr += NPACKED_BYTES;
-        memcpy(c + HASH_BYTES*(2*i + (1 - b)), sigptr, HASH_BYTES);
-        sigptr += HASH_BYTES;
+        memcpy(c + HASH_BYTES*(2*i + (1 - b)), sigptr + NPACKED_BYTES, HASH_BYTES);
+        sigptr += NPACKED_BYTES + 2*HASH_BYTES;
     }
 
     H(c, c, HASH_BYTES * ROUNDS * 2);
