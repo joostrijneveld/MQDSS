@@ -4,7 +4,7 @@ The code in this branch of the repository corresponds to the [MQDSS submission](
 
 ### Parameters
 
-To switch between the MQDSS-48 and MQDSS-64 parameter sets, adjust the relevant parameters in `params.h` accordingly. In particular, this concerns `M = N` and `ROUNDS`, as well as `HASH_BYTES` and `SEED_BYTES` (which should be set to `48`, `135`, `16` and `32` versus `64`, `202`, `24` and `48` for the respective parameter sets). These parameters are motivated in detail in [the specification document](http://mqdss.org/specification.html).
+To switch between the MQDSS-48 and MQDSS-64 parameter sets, we adjust the relevant parameters in `params.h` accordingly. In particular, this concerns `M = N` and `ROUNDS`, as well as `SEED_BYTES` and `HASH_BYTES` (which should be set to `48`, `135`, `16` and `32` versus `64`, `202`, `24` and `48` for the respective parameter sets). The recommended parameter sets are predefined in the `params/` directory. These parameters are motivated in detail in [the specification document](http://mqdss.org/specification.html).
 
 ### License
 
