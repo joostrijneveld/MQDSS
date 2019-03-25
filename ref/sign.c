@@ -10,14 +10,14 @@
 
 /* Takes an array of len bytes and computes a hash digest.
    This is used as a hash function in the Fiat-Shamir transform. */
-void H(unsigned char *out, const unsigned char *in, const unsigned int len)
+static void H(unsigned char *out, const unsigned char *in, const unsigned int len)
 {
     shake256(out, HASH_BYTES, in, len);
 }
 
 /* Takes two arrays of N packed elements and an array of M packed elements,
    and computes a HASH_BYTES commitment. */
-void com_0(unsigned char *c,
+static void com_0(unsigned char *c,
            const unsigned char *rho,
            const unsigned char *inn, const unsigned char *inn2,
            const unsigned char *inm)
@@ -32,7 +32,7 @@ void com_0(unsigned char *c,
 
 /* Takes an array of N packed elements and an array of M packed elements,
    and computes a HASH_BYTES commitment. */
-void com_1(unsigned char *c,
+static void com_1(unsigned char *c,
            const unsigned char *rho,
            const unsigned char *inn, const unsigned char *inm)
 {
