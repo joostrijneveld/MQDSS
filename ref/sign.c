@@ -8,11 +8,35 @@
 #include "gf31.h"
 #include "fips202.h"
 
-/* Takes an array of len bytes and computes a hash digest.
-   This is used as a hash function in the Fiat-Shamir transform. */
-static void H(unsigned char *out, const unsigned char *in, const unsigned int len)
+static void HR(unsigned char *R, const unsigned char *sk,
+               const unsigned char *m, const unsigned int mlen)
 {
-    shake256(out, HASH_BYTES, in, len);
+    uint64_t s_inc[26];
+
+    shake256_inc_init(s_inc);
+    shake256_inc_absorb(s_inc, sk, SK_BYTES);
+    shake256_inc_absorb(s_inc, m, mlen);
+    shake256_inc_finalize(s_inc);
+    shake256_inc_squeeze(R, HASH_BYTES, s_inc);
+}
+
+static void Hdigest(unsigned char *D,
+                    const unsigned char *pk, const unsigned char *R,
+                    const unsigned char *m, const unsigned int mlen)
+{
+    uint64_t s_inc[26];
+
+    shake256_inc_init(s_inc);
+    shake256_inc_absorb(s_inc, pk, PK_BYTES);
+    shake256_inc_absorb(s_inc, R, HASH_BYTES);
+    shake256_inc_absorb(s_inc, m, mlen);
+    shake256_inc_finalize(s_inc);
+    shake256_inc_squeeze(D, HASH_BYTES, s_inc);
+}
+
+static void Hsigma0(unsigned char *sigma0, const unsigned char *commits)
+{
+    shake256(sigma0, HASH_BYTES, commits, HASH_BYTES * ROUNDS * 2);
 }
 
 /* Takes two arrays of N packed elements and an array of M packed elements,
@@ -22,12 +46,15 @@ static void com_0(unsigned char *c,
            const unsigned char *inn, const unsigned char *inn2,
            const unsigned char *inm)
 {
-    unsigned char buffer[HASH_BYTES + 2*NPACKED_BYTES + MPACKED_BYTES];
-    memcpy(buffer, rho, HASH_BYTES);
-    memcpy(buffer + HASH_BYTES, inn, NPACKED_BYTES);
-    memcpy(buffer + HASH_BYTES + NPACKED_BYTES, inn2, NPACKED_BYTES);
-    memcpy(buffer + HASH_BYTES + 2*NPACKED_BYTES, inm, MPACKED_BYTES);
-    shake256(c, HASH_BYTES, buffer, HASH_BYTES + 2*NPACKED_BYTES + MPACKED_BYTES);
+    uint64_t s_inc[26];
+
+    shake256_inc_init(s_inc);
+    shake256_inc_absorb(s_inc, rho, HASH_BYTES);
+    shake256_inc_absorb(s_inc, inn, NPACKED_BYTES);
+    shake256_inc_absorb(s_inc, inn2, NPACKED_BYTES);
+    shake256_inc_absorb(s_inc, inm, MPACKED_BYTES);
+    shake256_inc_finalize(s_inc);
+    shake256_inc_squeeze(c, HASH_BYTES, s_inc);
 }
 
 /* Takes an array of N packed elements and an array of M packed elements,
@@ -36,11 +63,14 @@ static void com_1(unsigned char *c,
            const unsigned char *rho,
            const unsigned char *inn, const unsigned char *inm)
 {
-    unsigned char buffer[HASH_BYTES + NPACKED_BYTES + MPACKED_BYTES];
-    memcpy(buffer, rho, HASH_BYTES);
-    memcpy(buffer + HASH_BYTES, inn, NPACKED_BYTES);
-    memcpy(buffer + HASH_BYTES + NPACKED_BYTES, inm, MPACKED_BYTES);
-    shake256(c, HASH_BYTES, buffer, HASH_BYTES + NPACKED_BYTES + MPACKED_BYTES);
+    uint64_t s_inc[26];
+
+    shake256_inc_init(s_inc);
+    shake256_inc_absorb(s_inc, rho, HASH_BYTES);
+    shake256_inc_absorb(s_inc, inn, NPACKED_BYTES);
+    shake256_inc_absorb(s_inc, inm, MPACKED_BYTES);
+    shake256_inc_finalize(s_inc);
+    shake256_inc_squeeze(c, HASH_BYTES, s_inc);
 }
 
 /*
@@ -117,10 +147,7 @@ int crypto_sign(unsigned char *sm, unsigned long long *smlen,
 
     gf31_nrand_schar(F, F_LEN, skbuf, SEED_BYTES);
 
-    assert(SIG_LEN > SEED_BYTES);
-    memcpy(sm + SIG_LEN - SEED_BYTES, sk, SEED_BYTES);
-    memcpy(sm + SIG_LEN, m, mlen);
-    H(sm, sm + SIG_LEN - SEED_BYTES, mlen + SEED_BYTES);  // Compute R.
+    HR(sm, sk, m, mlen);
 
     memcpy(pk, skbuf, SEED_BYTES);
     gf31_nrand(sk_gf31, N, skbuf + SEED_BYTES, SEED_BYTES);
@@ -128,9 +155,7 @@ int crypto_sign(unsigned char *sm, unsigned long long *smlen,
     vgf31_unique(pk_gf31, pk_gf31);
     gf31_npack(pk + SEED_BYTES, pk_gf31, M);
 
-    memcpy(sm + SIG_LEN - HASH_BYTES - PK_BYTES, pk, PK_BYTES);
-    memcpy(sm + SIG_LEN - HASH_BYTES, sm, HASH_BYTES);
-    H(D, sm + SIG_LEN - HASH_BYTES - PK_BYTES, mlen + PK_BYTES + HASH_BYTES);
+    Hdigest(D, pk, sm, m, mlen);
 
     sm += HASH_BYTES;  // Compensate for prefixed R.
 
@@ -163,7 +188,7 @@ int crypto_sign(unsigned char *sm, unsigned long long *smlen,
         com_1(c + HASH_BYTES * (2*i + 1), rho1 + i*HASH_BYTES, packbuf0, packbuf1);
     }
 
-    H(sigma0, c, HASH_BYTES * ROUNDS * 2);  // Compute sigma_0.
+    Hsigma0(sigma0, c);
     shake256_absorb(shakestate, D_sigma0_h0_sigma1, 2 * HASH_BYTES);
     shake256_squeezeblocks(shakeblock, 1, shakestate);
 
@@ -212,7 +237,10 @@ int crypto_sign(unsigned char *sm, unsigned long long *smlen,
         memcpy(sm + NPACKED_BYTES + HASH_BYTES, rho + (i + b * ROUNDS) * HASH_BYTES, HASH_BYTES);
         sm += NPACKED_BYTES + 2*HASH_BYTES;
     }
+
+    memmove(sm, m, mlen);
     *smlen = SIG_LEN + mlen;
+
     return 0;
 }
 
@@ -230,8 +258,6 @@ int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
     gf31 e[M];
     signed char F[F_LEN];
     gf31 pk_gf31[M];
-    unsigned char sig[SIG_LEN];
-    unsigned char *sigptr = sig;
     // Concatenated for convenient hashing.
     unsigned char D_sigma0_h0_sigma1[HASH_BYTES * 3 + ROUNDS * (NPACKED_BYTES + MPACKED_BYTES)];
     unsigned char *D = D_sigma0_h0_sigma1;
@@ -264,36 +290,27 @@ int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
 
     *mlen = smlen - SIG_LEN;
 
-    /* Create a copy of the signature so that m = sm is not an issue */
-    memcpy(sig, sm, SIG_LEN);
+    Hdigest(D, pk, sm, sm + SIG_LEN, *mlen);
 
-    /* Put the message all the way at the end of the m buffer, so that we can
-     * prepend the required other inputs for the hash function. */
-    memcpy(m + SIG_LEN, sm + SIG_LEN, *mlen);
-
-    memcpy(m + SIG_LEN - PK_BYTES - HASH_BYTES, pk, PK_BYTES);  // Copy pk to m.
-    memcpy(m + SIG_LEN - HASH_BYTES, sigptr, HASH_BYTES);  // Copy R to m.
-    H(D, m + SIG_LEN - PK_BYTES - HASH_BYTES, *mlen + PK_BYTES + HASH_BYTES);
-
-    sigptr += HASH_BYTES;
+    sm += HASH_BYTES;
 
     gf31_nrand_schar(F, F_LEN, pk, SEED_BYTES);
     pk += SEED_BYTES;
     gf31_nunpack(pk_gf31, pk, M);
 
-    memcpy(sigma0, sigptr, HASH_BYTES);
+    memcpy(sigma0, sm, HASH_BYTES);
 
     shake256_absorb(shakestate, D_sigma0_h0_sigma1, 2 * HASH_BYTES);
     shake256_squeezeblocks(shakeblock, 1, shakestate);
 
     memcpy(h0, shakeblock, HASH_BYTES);
 
-    sigptr += HASH_BYTES;
+    sm += HASH_BYTES;
 
-    memcpy(t1packed, sigptr, ROUNDS * NPACKED_BYTES);
-    sigptr += ROUNDS*NPACKED_BYTES;
-    memcpy(e1packed, sigptr, ROUNDS * MPACKED_BYTES);
-    sigptr += ROUNDS*MPACKED_BYTES;
+    memcpy(t1packed, sm, ROUNDS * NPACKED_BYTES);
+    sm += ROUNDS*NPACKED_BYTES;
+    memcpy(e1packed, sm, ROUNDS * MPACKED_BYTES);
+    sm += ROUNDS*MPACKED_BYTES;
 
     shake256(h1, ((ROUNDS + 7) & ~7) >> 3, D_sigma0_h0_sigma1, 3*HASH_BYTES + ROUNDS*(NPACKED_BYTES + MPACKED_BYTES));
 
@@ -308,7 +325,7 @@ int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
         } while (alpha == 31);
         b = (h1[(i >> 3)] >> (i & 7)) & 1;
 
-        gf31_nunpack(r, sigptr, N);
+        gf31_nunpack(r, sm, N);
         gf31_nunpack(t, t1packed + NPACKED_BYTES*i, N);
         gf31_nunpack(e, e1packed + MPACKED_BYTES*i, M);
 
@@ -324,7 +341,7 @@ int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
             vgf31_shorten_unique(y, y);
             gf31_npack(packbuf0, x, N);
             gf31_npack(packbuf1, y, M);
-            com_0(c + HASH_BYTES*(2*i + 0), sigptr + HASH_BYTES + NPACKED_BYTES, sigptr, packbuf0, packbuf1);
+            com_0(c + HASH_BYTES*(2*i + 0), sm + HASH_BYTES + NPACKED_BYTES, sm, packbuf0, packbuf1);
         } else {
             MQ(y, r, F);
             G(z, t, r, F);
@@ -333,13 +350,13 @@ int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
             }
             vgf31_shorten_unique(y, y);
             gf31_npack(packbuf0, y, M);
-            com_1(c + HASH_BYTES*(2*i + 1), sigptr + HASH_BYTES + NPACKED_BYTES, sigptr, packbuf0);
+            com_1(c + HASH_BYTES*(2*i + 1), sm + HASH_BYTES + NPACKED_BYTES, sm, packbuf0);
         }
-        memcpy(c + HASH_BYTES*(2*i + (1 - b)), sigptr + NPACKED_BYTES, HASH_BYTES);
-        sigptr += NPACKED_BYTES + 2*HASH_BYTES;
+        memcpy(c + HASH_BYTES*(2*i + (1 - b)), sm + NPACKED_BYTES, HASH_BYTES);
+        sm += NPACKED_BYTES + 2*HASH_BYTES;
     }
 
-    H(c, c, HASH_BYTES * ROUNDS * 2);
+    Hsigma0(c, c);
     if (memcmp(c, sigma0, HASH_BYTES)) {
         memset(m, 0, smlen);
         *mlen = 0;
@@ -347,7 +364,7 @@ int crypto_sign_open(unsigned char *m, unsigned long long *mlen,
     }
 
     /* If verification was successful, move the message to the right place. */
-    memmove(m, m + SIG_LEN, *mlen);
+    memmove(m, sm, *mlen);
 
     return 0;
 }
